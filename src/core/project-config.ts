@@ -2,6 +2,7 @@ import { existsSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
+import { makeStoreDiagnostic, type StoreDiagnostic } from './store/errors.js';
 
 export const OPERATION_IDS = ['apply', 'archive'] as const;
 export type OperationId = (typeof OPERATION_IDS)[number];
@@ -246,10 +247,42 @@ function parseDeclarationList(raw: unknown): DeclarationEntry[] | undefined {
 export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the references index
 
 /**
- * Read and parse openspec/config.yaml from project root.
- * Uses resilient parsing - validates each field independently using Zod safeParse.
- * Returns null if file doesn't exist.
- * Returns partial config if some fields are invalid (with warnings).
+ * Why a config file that EXISTS could not be read as project facts.
+ *
+ * `unparseable` is a YAML syntax error; `not_mapping` is a file that parses
+ * into a scalar instead of a mapping. An absent file is not a reason, and
+ * neither is an empty or comments-only one: nothing was written there, so
+ * nothing was lost.
+ */
+export interface ProjectConfigUnreadable {
+  kind: 'unparseable' | 'not_mapping';
+  /** First line of the parser's own reason; never a stack trace. */
+  detail: string;
+}
+
+/** A config read that carries the refusal reason next to the config. */
+export interface ProjectConfigRead {
+  /** Parsed config, or null when there is none to use. */
+  config: ProjectConfig | null;
+  /** Absolute path of the config file actually read, or null when none exists. */
+  filePath: string | null;
+  /** Set only when the file exists and could not be read as project facts. */
+  unreadable?: ProjectConfigUnreadable;
+}
+
+/**
+ * Read openspec/config.yaml together with the reason it was refused.
+ *
+ * `readProjectConfig` drops that reason on the floor, which is right for the
+ * fourteen callers that can work without a config and wrong for the three that
+ * speak for the project: an instruction generated without `context` and `rules`
+ * looks exactly like one where the project had nothing to say. Parsing lives
+ * here, so both forms read the same file the same way and cannot drift.
+ *
+ * Silent by design - it reports the unusable file through the return value.
+ * Field-level warnings (a dropped rule, an oversized context) still go to
+ * stderr from here, because the fields around them ARE loaded and every caller
+ * wants to know what was skipped.
  *
  * Performance note (Jan 2025):
  * Benchmarks showed direct file reads are fast enough without caching:
@@ -262,21 +295,43 @@ export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the r
  * changes are reflected immediately without stale cache issues.
  *
  * @param projectRoot - The root directory of the project (where `openspec/` lives)
- * @returns Parsed config or null if file doesn't exist
+ * @returns The config, the file it came from, and the refusal reason if any
  */
-export function readProjectConfig(projectRoot: string): ProjectConfig | null {
+export function readProjectConfigResult(projectRoot: string): ProjectConfigRead {
   const configPath = resolveConfigFilePath(projectRoot);
   if (configPath === null) {
-    return null; // No config is OK
+    return { config: null, filePath: null }; // No config is OK
+  }
+
+  let raw: any;
+  try {
+    raw = parseYaml(readFileSync(configPath, 'utf-8'));
+  } catch (error) {
+    return {
+      config: null,
+      filePath: configPath,
+      unreadable: {
+        kind: 'unparseable',
+        detail: error instanceof Error ? error.message.split('\n')[0] : String(error),
+      },
+    };
   }
 
   try {
-    const content = readFileSync(configPath, 'utf-8');
-    const raw = parseYaml(content);
-
-    if (!raw || typeof raw !== 'object') {
+    if (raw === null || raw === undefined) {
+      // Empty or comments-only: imperfect, not unusable. Warned about as
+      // before and read as "no config", so a project that has not filled it
+      // in yet keeps working.
       console.warn(`openspec/config.yaml is not a valid YAML object`);
-      return null;
+      return { config: null, filePath: configPath };
+    }
+
+    if (typeof raw !== 'object') {
+      return {
+        config: null,
+        filePath: configPath,
+        unreadable: { kind: 'not_mapping', detail: `config is a ${typeof raw}, not a YAML mapping` },
+      };
     }
 
     const config: Partial<ProjectConfig> = {};
@@ -395,12 +450,108 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
     }
 
     // Return partial config even if some fields failed
-    return Object.keys(config).length > 0 ? (config as ProjectConfig) : null;
+    return {
+      config: Object.keys(config).length > 0 ? (config as ProjectConfig) : null,
+      filePath: configPath,
+    };
   } catch (error) {
-    console.warn(
-      `Warning: could not parse ${configPathForWarnings(projectRoot)} (${error instanceof Error ? error.message.split('\n')[0] : String(error)}); ignoring it.`
-    );
-    return null;
+    // Field parsing throwing is not a syntax error in the file, but it leaves
+    // the same hole - no facts - so it is reported the same way.
+    return {
+      config: null,
+      filePath: configPath,
+      unreadable: {
+        kind: 'unparseable',
+        detail: error instanceof Error ? error.message.split('\n')[0] : String(error),
+      },
+    };
+  }
+}
+
+/**
+ * Read and parse openspec/config.yaml from project root.
+ * Uses resilient parsing - validates each field independently using Zod safeParse.
+ * Returns null if the file doesn't exist, and null (with a warning) if it exists
+ * but cannot be read.
+ * Returns partial config if some fields are invalid (with warnings).
+ *
+ * Kept warning-and-null because fourteen call sites work fine without a config;
+ * the surfaces that speak FOR the project read
+ * {@link readProjectConfigResult} instead and refuse out loud.
+ *
+ * @param projectRoot - The root directory of the project (where `openspec/` lives)
+ * @returns Parsed config, or null if the file doesn't exist or is unusable
+ */
+export function readProjectConfig(projectRoot: string): ProjectConfig | null {
+  const read = readProjectConfigResult(projectRoot);
+  if (read.unreadable) {
+    console.warn(projectConfigWarning(read));
+  }
+  return read.config;
+}
+
+/**
+ * The stderr warning `readProjectConfig` has always printed for a config file
+ * it could not use. Kept verbatim (including the "ignoring it" ending, which
+ * describes exactly what this form does) so the callers that tolerate a missing
+ * config keep reading the same line.
+ */
+function projectConfigWarning(read: ProjectConfigRead): string {
+  const filePath = read.filePath ?? 'openspec/config.yaml';
+  return read.unreadable?.kind === 'not_mapping'
+    ? `openspec/config.yaml is not a valid YAML object`
+    : `Warning: could not parse ${filePath} (${read.unreadable?.detail}); ignoring it.`;
+}
+
+/**
+ * The same warning, for callers that read through
+ * {@link readProjectConfigResult} but must not go quieter than
+ * `readProjectConfig` was.
+ */
+export function warnUnreadableProjectConfig(read: ProjectConfigRead): void {
+  if (!read.unreadable) return;
+  console.warn(projectConfigWarning(read));
+}
+
+/**
+ * What to tell a person about a config file that exists and cannot be used,
+ * and what to do about it. One wording for every surface that refuses on it,
+ * so `instructions`, `validate` and `doctor` cannot describe the same file
+ * three different ways.
+ */
+export function projectConfigProblem(read: ProjectConfigRead): { message: string; fix: string } {
+  const filePath = read.filePath ?? 'openspec/config.yaml';
+  const reason =
+    read.unreadable?.kind === 'not_mapping'
+      ? 'it is not a YAML mapping'
+      : `it could not be parsed (${read.unreadable?.detail})`;
+  return {
+    message:
+      `${filePath} could not be read as project configuration: ${reason}. ` +
+      'The project context and rules it declares reach nothing until it parses.',
+    fix: `Fix the YAML in ${filePath} (or remove the file if the project declares no configuration).`,
+  };
+}
+
+/** The diagnostic code every surface reports an unusable config under. */
+export const PROJECT_CONFIG_UNREADABLE_CODE = 'project_config_unreadable';
+
+/**
+ * Thrown by the surfaces that must not continue without the project's facts.
+ * Carries the CLI's diagnostic envelope, so `--json` callers get the reason in
+ * the response and human callers get the `Fix:` line.
+ */
+export class ProjectConfigUnreadableError extends Error {
+  readonly diagnostic: StoreDiagnostic;
+
+  constructor(read: ProjectConfigRead) {
+    const problem = projectConfigProblem(read);
+    super(problem.message);
+    this.name = 'ProjectConfigUnreadableError';
+    this.diagnostic = makeStoreDiagnostic('error', PROJECT_CONFIG_UNREADABLE_CODE, problem.message, {
+      target: read.filePath ?? 'openspec/config.yaml',
+      fix: problem.fix,
+    });
   }
 }
 
