@@ -5,7 +5,9 @@ import * as os from 'node:os';
 import {
   loadOperationInputs,
   OPERATION_IDS,
+  projectConfigProblem,
   readProjectConfig,
+  readProjectConfigResult,
   validateConfigRules,
   suggestSchemas,
 } from '../../src/core/project-config.js';
@@ -1014,6 +1016,97 @@ rules:
       // 'abcdefghijk' has large Levenshtein distance from all schemas
       expect(message).not.toContain('Did you mean');
       expect(message).toContain('Available schemas:');
+    });
+  });
+  describe('readProjectConfigResult', () => {
+    function writeConfig(body: string): void {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(path.join(configDir, 'config.yaml'), body);
+    }
+
+    it('returns the config and the file it came from when the config is valid', () => {
+      writeConfig('schema: spec-driven\ncontext: Tech stack is TypeScript\n');
+
+      const read = readProjectConfigResult(tempDir);
+
+      expect(read.config).toEqual({ schema: 'spec-driven', context: 'Tech stack is TypeScript' });
+      expect(read.filePath).toBe(path.join(tempDir, 'openspec', 'config.yaml'));
+      expect(read.unreadable).toBeUndefined();
+    });
+
+    it('reports no file and no reason when there is no config at all', () => {
+      const read = readProjectConfigResult(tempDir);
+
+      expect(read).toEqual({ config: null, filePath: null });
+    });
+
+    it('names the file and the parser reason when the config does not parse', () => {
+      writeConfig('schema: spec-driven\nrules:\n  proposal:\n    - Title: no longer: than 80\n');
+
+      const read = readProjectConfigResult(tempDir);
+
+      expect(read.config).toBeNull();
+      expect(read.filePath).toBe(path.join(tempDir, 'openspec', 'config.yaml'));
+      expect(read.unreadable?.kind).toBe('unparseable');
+      // The parser's own first line, and only the first line.
+      expect(read.unreadable?.detail).toContain('Nested mappings');
+      expect(read.unreadable?.detail.split('\n')).toHaveLength(1);
+    });
+
+    it('reports a config that parses into a scalar instead of a mapping', () => {
+      writeConfig('"just a string"');
+
+      const read = readProjectConfigResult(tempDir);
+
+      expect(read.config).toBeNull();
+      expect(read.unreadable?.kind).toBe('not_mapping');
+    });
+
+    it('treats an empty config as no config, not as a broken one', () => {
+      writeConfig('');
+
+      const read = readProjectConfigResult(tempDir);
+
+      expect(read.config).toBeNull();
+      expect(read.unreadable).toBeUndefined();
+    });
+
+    it('stays silent about the unusable file, since it returns the reason', () => {
+      writeConfig('schema: [unclosed');
+
+      readProjectConfigResult(tempDir);
+
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it('still warns about dropped fields, which are not the caller\'s to report', () => {
+      writeConfig('schema: spec-driven\nrules: not-an-object\n');
+
+      const read = readProjectConfigResult(tempDir);
+
+      expect(read.config).toEqual({ schema: 'spec-driven' });
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Invalid 'rules' field")
+      );
+    });
+
+    it('leaves readProjectConfig warning and returning null, as its callers expect', () => {
+      writeConfig('schema: [unclosed');
+
+      expect(readProjectConfig(tempDir)).toBeNull();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('could not parse'));
+    });
+
+    it('describes the problem once, naming the file and the fix', () => {
+      writeConfig('schema: [unclosed');
+      const read = readProjectConfigResult(tempDir);
+
+      const problem = projectConfigProblem(read);
+
+      expect(problem.message).toContain('config.yaml');
+      expect(problem.message).toContain('could not be parsed');
+      expect(problem.fix).toContain('Fix the YAML');
     });
   });
 });

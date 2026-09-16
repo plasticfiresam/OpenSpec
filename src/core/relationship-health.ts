@@ -9,7 +9,12 @@
  */
 import { makeStoreDiagnostic, type StoreDiagnostic } from './store/errors.js';
 import { sanitizeInline, type ReferenceIndexEntry } from './references.js';
-import { storePointerProblem } from './project-config.js';
+import {
+  projectConfigProblem,
+  PROJECT_CONFIG_UNREADABLE_CODE,
+  storePointerProblem,
+  type ProjectConfigRead,
+} from './project-config.js';
 import { toRootOutput, type ResolvedOpenSpecRoot } from './root-selection.js';
 
 export interface RelationshipHealth {
@@ -52,6 +57,8 @@ export interface InspectRelationshipsInput {
   malformedPointer?: { filePath: string; reason: 'unparseable' | 'non_string' };
   /** Reference declarations in a pointer directory's own config are inert. */
   inertPointerDeclarations?: { filePath: string; fields: string[] };
+  /** The root's config file exists and could not be read as project facts. */
+  unreadableConfig?: ProjectConfigRead;
 }
 
 function warning(code: string, message: string, fix: string): StoreDiagnostic {
@@ -153,11 +160,26 @@ export function inspectRelationships(input: InspectRelationshipsInput): Relation
     };
   }
 
+  // A config that does not parse is a fact about the ROOT, not about a
+  // relationship: everything the root declares (context, rules, references)
+  // is missing until it is fixed, which is why it is reported next to the
+  // root's own health rather than as a note at the end.
+  const rootStatus = [...(input.rootStatus ?? [])];
+  if (input.unreadableConfig?.unreadable) {
+    const problem = projectConfigProblem(input.unreadableConfig);
+    rootStatus.push(
+      makeStoreDiagnostic('error', PROJECT_CONFIG_UNREADABLE_CODE, problem.message, {
+        target: input.unreadableConfig.filePath ?? 'openspec/config.yaml',
+        fix: problem.fix,
+      })
+    );
+  }
+
   return {
     root: {
       ...toRootOutput(input.root),
       healthy: input.rootHealthy,
-      status: input.rootStatus ?? [],
+      status: rootStatus,
     },
     store,
     references: input.referenceEntries,

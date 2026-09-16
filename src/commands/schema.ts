@@ -543,31 +543,29 @@ export function registerSchemaCommand(program: Command): void {
               package: schemas.filter((s) => s.source === 'package'),
             };
 
+            // The directory is printed next to every name: with shadowing, the
+            // name alone cannot say which copy won, which is the question this
+            // listing exists to answer.
+            const printSchema = (schema: SchemaResolution): void => {
+              const shadowInfo = schema.shadows.length > 0
+                ? ` (shadows: ${schema.shadows.map((s) => `${s.source} at ${s.path}`).join(', ')})`
+                : '';
+              console.log(`  ${schema.name}: ${schema.path}${shadowInfo}`);
+            };
+
             if (bySource.project.length > 0) {
               console.log('\nProject schemas:');
-              for (const schema of bySource.project) {
-                const shadowInfo = schema.shadows.length > 0
-                  ? ` (shadows: ${schema.shadows.map((s) => s.source).join(', ')})`
-                  : '';
-                console.log(`  ${schema.name}${shadowInfo}`);
-              }
+              bySource.project.forEach(printSchema);
             }
 
             if (bySource.user.length > 0) {
               console.log('\nUser schemas:');
-              for (const schema of bySource.user) {
-                const shadowInfo = schema.shadows.length > 0
-                  ? ` (shadows: ${schema.shadows.map((s) => s.source).join(', ')})`
-                  : '';
-                console.log(`  ${schema.name}${shadowInfo}`);
-              }
+              bySource.user.forEach(printSchema);
             }
 
             if (bySource.package.length > 0) {
               console.log('\nPackage schemas:');
-              for (const schema of bySource.package) {
-                console.log(`  ${schema.name}`);
-              }
+              bySource.package.forEach(printSchema);
             }
           }
           return;

@@ -9,6 +9,12 @@ import {
   type ResolvedOpenSpecRoot,
   isStoreSelectedRoot,
 } from '../core/root-selection.js';
+import {
+  projectConfigProblem,
+  readProjectConfigResult,
+  PROJECT_CONFIG_UNREADABLE_CODE,
+  type ProjectConfigRead,
+} from '../core/project-config.js';
 import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import { getSpecIds } from '../utils/item-discovery.js';
 import { getAvailableChanges } from './workflow/shared.js';
@@ -53,6 +59,19 @@ export class ValidateCommand {
       return;
     }
 
+    // The config decides which schema every item below is validated against
+    // (and which rules its artifacts were written to), so a config file that
+    // exists and cannot be read makes every verdict here a verdict about
+    // different facts than the project declared. Reported once and up front as
+    // an ERROR rather than per item, and in every mode: `--strict` raises
+    // warnings to failures, and this was never a warning.
+    const configRead = readProjectConfigResult(root.path);
+    if (configRead.unreadable) {
+      this.reportUnreadableProjectConfig(root, configRead, !!options.json);
+      process.exitCode = 1;
+      return;
+    }
+
     const interactive = isInteractive(options);
 
     // Archived-task linting is its own scope: it checks task completion of
@@ -90,6 +109,45 @@ export class ValidateCommand {
     // Direct item validation with type detection or override
     const typeOverride = this.normalizeType(options.type);
     await this.validateDirectItem(root, itemName, { typeOverride, strict: !!options.strict, json: !!options.json });
+  }
+
+  /**
+   * Prints the unusable-config refusal in the shape each mode already speaks:
+   * an ERROR line plus the fix in text mode, and the command's empty payload
+   * plus a `status` entry in `--json`, so an agent reads the reason from the
+   * response instead of having to scrape stderr.
+   */
+  private reportUnreadableProjectConfig(
+    root: ResolvedOpenSpecRoot,
+    read: ProjectConfigRead,
+    json: boolean
+  ): void {
+    const problem = projectConfigProblem(read);
+    if (json) {
+      console.log(
+        JSON.stringify(
+          {
+            items: [],
+            summary: { totals: { items: 0, passed: 0, failed: 0 }, byType: {} },
+            version: '1.0',
+            root: toRootOutput(root),
+            status: [
+              {
+                severity: 'error',
+                code: PROJECT_CONFIG_UNREADABLE_CODE,
+                message: problem.message,
+                fix: problem.fix,
+              },
+            ],
+          },
+          null,
+          2
+        )
+      );
+      return;
+    }
+    console.error(`✗ [ERROR] ${read.filePath}: ${problem.message}`);
+    console.error(`Fix: ${problem.fix}`);
   }
 
   private normalizeType(value?: string): ItemType | undefined {

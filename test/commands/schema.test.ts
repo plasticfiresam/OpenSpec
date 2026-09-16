@@ -145,6 +145,45 @@ artifacts:
       expect(schemas.length).toBeGreaterThan(0);
       expect(schemas).toContain('spec-driven');
     });
+
+    // With shadowing, a bare name cannot say which copy won - which is the
+    // question `which --all` exists to answer.
+    it('prints the directory of every schema, and of the copies it shadows', async () => {
+      const projectSchemaDir = path.join(tempDir, 'openspec', 'schemas', 'spec-driven');
+      fs.mkdirSync(projectSchemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(projectSchemaDir, 'schema.yaml'),
+        `name: spec-driven
+version: 1
+description: Custom spec-driven
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+`
+      );
+      fs.writeFileSync(path.join(projectSchemaDir, 'proposal.md'), '# Proposal');
+
+      await runSchemaCommand(['which', '--all']);
+
+      const printed = consoleLogSpy.mock.calls.map((call) => String(call[0])).join('\n');
+      // The command reports the cwd it resolved, which on macOS is the real
+      // path behind /var -> /private/var.
+      expect(printed).toContain(`spec-driven: ${fs.realpathSync(projectSchemaDir)}`);
+      expect(printed).toMatch(/shadows: package at .*schemas[/\\]spec-driven/);
+    });
+
+    it('carries the same directories in --json', async () => {
+      await runSchemaCommand(['which', '--all', '--json']);
+
+      const payload = JSON.parse(String(consoleLogSpy.mock.calls.at(-1)?.[0]));
+      expect(payload.length).toBeGreaterThan(0);
+      for (const schema of payload) {
+        expect(path.isAbsolute(schema.path)).toBe(true);
+        expect(schema.path.endsWith(path.join('schemas', schema.name))).toBe(true);
+      }
+    });
   });
 
   describe('schema validate', () => {

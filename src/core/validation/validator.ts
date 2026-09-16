@@ -34,6 +34,7 @@ import {
 import { resolveTaskFilesForChange } from '../../utils/task-progress.js';
 import { findTaskNumberingIssues } from './task-numbering.js';
 import { findPurposePlaceholderIssue } from './purpose-placeholder.js';
+import { findTemplatePlaceholderIssues } from './template-placeholder.js';
 import { getPackageSchemasDir, getSchemaDir } from '../artifact-graph/index.js';
 
 export class Validator {
@@ -201,6 +202,8 @@ export class Validator {
 
         const plan = parseDeltaSpec(content);
         const entryPath = FileSystemUtils.toPosixPath(path.relative(specsDir, specFile));
+
+        issues.push(...this.collectTemplatePlaceholderIssues(content, entryPath));
 
         // Surface (as INFO, never a failure) the non-canonical level-3 headers
         // the delta reader skipped while parsing ADDED/MODIFIED sections —
@@ -721,7 +724,9 @@ export class Validator {
 
   private applyChangeRules(change: Change, content: string): ValidationIssue[] {
     const issues: ValidationIssue[] = [];
-    
+
+    issues.push(...this.collectTemplatePlaceholderIssues(content, 'file'));
+
     const MIN_DELTA_DESCRIPTION_LENGTH = 10;
     
     change.deltas.forEach((delta, index) => {
@@ -744,6 +749,23 @@ export class Validator {
     });
     
     return issues;
+  }
+
+  /**
+   * Unreplaced template prompts in one change artifact, as warnings.
+   *
+   * WARNING, like the Purpose placeholder it is modelled on: a plain
+   * `validate` says the document is unfinished without blocking the author
+   * mid-draft, and `--strict` - the mode a reviewer or CI runs - refuses it.
+   * An ERROR here would fail every change the moment it is scaffolded.
+   */
+  private collectTemplatePlaceholderIssues(content: string, entryPath: string): ValidationIssue[] {
+    return findTemplatePlaceholderIssues(content).map((placeholder) => ({
+      level: 'WARNING' as ValidationLevel,
+      path: entryPath,
+      line: placeholder.line,
+      message: `${VALIDATION_MESSAGES.TEMPLATE_PLACEHOLDER} Found: ${placeholder.text}`,
+    }));
   }
 
   private enrichTopLevelError(itemId: string, baseMessage: string): string {
