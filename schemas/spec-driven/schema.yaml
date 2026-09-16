@@ -219,6 +219,9 @@ artifacts:
       proposal for motivation and, once written, the specs for requirements -
       if a section would only restate them, point to them instead.
 
+      Keep the mini decisions below only when the change's backend is built
+      on mini; when the backend is a different one, delete them and describe
+      the actual approach under Decisions instead.
       For mini-based implementation, cover only the applicable mappings:
       Resource/registry; CRUDL or aggregate; pure business rules and decision
       seams wherever a rule can be separated from I/O and state. Name the
