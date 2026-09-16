@@ -1,29 +1,39 @@
 ## Why
 
-<!-- Explain the motivation for this change. What problem does this solve? Why now? -->
+[Перед сохранением замените все подсказки в квадратных скобках и удалите
+неприменимый текст. Опишите мотивацию change в 1-2 предложениях: какую
+проблему он решает и почему сейчас.]
 
 ## What Changes
 
-<!-- Describe what will change. Be specific about new capabilities, modifications, or removals. -->
+[Перечислите, что именно меняется: новые возможности, изменения и удаления.
+Помечайте ломающие изменения как **BREAKING**.]
 
 ## Capabilities
 
 ### New Capabilities
-<!-- Capabilities being introduced. Use kebab-case for path segments you introduce
-     (e.g., user-auth or identity/user-auth) that follow the project's existing
-     spec organization. Each creates specs/<capability-path>/spec.md. -->
-- `<capability-path>`: <brief description of what this capability covers>
+
+[Вводимые возможности. Вводимые вами сегменты пути пишите в kebab-case
+(например, `user-auth` или `identity/user-auth`) и следуйте принятой в проекте
+организации спецификаций. Каждая строка порождает
+`specs/<capability-path>/spec.md`.]
+
+- `<capability-path>`: <что покрывает эта возможность>
 
 ### Modified Capabilities
-<!-- Existing capabilities whose REQUIREMENTS are changing (not just implementation).
-     Only list here if spec-level behavior changes. Each needs a delta spec file.
-     Use the exact existing path under openspec/specs/. Leave empty if no requirement
-     changes. A change with no capabilities at all (pure refactor, tooling, docs)
-     must set `skip_specs: true` in its .openspec.yaml - openspec validate rejects
-     a zero-delta change without that marker. Do not invent a requirement just to
-     satisfy validation. -->
-- `<existing-capability-path>`: <what requirement is changing>
+
+[Существующие возможности, у которых меняются ТРЕБОВАНИЯ, а не только
+реализация. Перечисляйте здесь, только если меняется поведение на уровне
+спецификации: каждой такой возможности нужен файл дельты. Путь берите ровно
+таким, каким он уже существует:
+exact existing path under openspec/specs/. Оставьте пусто, если требования не
+меняются. Change вообще без возможностей (чистый рефакторинг, инструменты,
+документация) обязан выставить `skip_specs: true` в своём `.openspec.yaml` —
+`openspec validate` отклоняет change с нулевой дельтой без этой пометки. Не
+выдумывайте требование ради прохождения проверки.]
+
+- `<existing-capability-path>`: <какое требование меняется>
 
 ## Impact
 
-<!-- Affected code, APIs, dependencies, systems -->
+[Затронутый код, API, зависимости и системы.]
