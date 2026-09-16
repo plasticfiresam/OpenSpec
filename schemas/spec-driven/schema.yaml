@@ -199,11 +199,14 @@ artifacts:
     instruction: |
       Create the design document that explains HOW to implement the change.
 
-      When to include design.md (create only if any apply):
-      - Cross-cutting change (multiple services/modules) or new architectural pattern
-      - New external dependency or significant data model changes
-      - Security, performance, or migration complexity
-      - Ambiguity that benefits from technical decisions before coding
+      design.md is always created: the tasks artifact requires it. Its length
+      follows the change. Spend a page on a cross-cutting change, a new
+      architectural pattern, a new dependency, a significant data model
+      change, or security, performance and migration complexity. Spend a few
+      lines when the change is small and the approach is obvious: name the
+      approach and the reason for it, and leave out every section that would
+      only repeat the proposal or the specs. Never pad the document to look
+      thorough.
 
       Sections:
       - **Context**: Only the current state and constraints needed to explain the approach. Reference the proposal for motivation instead of restating it (e.g., "See proposal.md - Why").
