@@ -313,7 +313,7 @@ describe('spec-driven platform blocks', () => {
     expect(readme).toMatch(/заменяются целиком до\s+запуска `openspec validate <name> --strict`/u);
     expect(readme).toMatch(/Scenario с таким именем не\s+называет ни одного теста, и артефакт с ним не готов/u);
     // The CLI cannot tell a leftover hint from written text, so the README says who removes it.
-    expect(readme).toMatch(/Снимает заготовку\s+автор/u);
+    expect(readme).toMatch(/обычный прогон предупреждает, `--strict`\s+отклоняет change/u);
   });
 
   it('documents the conditional blocks and a Surf config example in the README', async () => {
