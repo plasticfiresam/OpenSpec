@@ -53,6 +53,9 @@ export const VALIDATION_MESSAGES = {
     'capability is for, editing the main spec directly: a `## Purpose` in a delta is read only when the ' +
     'capability is created, so it cannot replace this one.',
   REQUIREMENT_TOO_LONG: `Requirement text is very long (>${MAX_REQUIREMENT_TEXT_LENGTH} characters). Consider breaking it down.`,
+  TEMPLATE_PLACEHOLDER:
+    'Template placeholder left in place: this text is a prompt the template ships with, not content anyone wrote. ' +
+    'Replace it (or delete it if the section does not apply); examples of the prompt syntax belong in a fenced code block.',
   DELTA_DESCRIPTION_TOO_BRIEF: 'Delta description is too brief',
   DELTA_MISSING_REQUIREMENTS: 'Delta should include requirements',
   
