@@ -37,7 +37,8 @@ import {
 import { readRegistrySnapshot } from '../../core/store/registry.js';
 import {
   loadOperationInputs,
-  readProjectConfig,
+  ProjectConfigUnreadableError,
+  readProjectConfigResult,
   type ProjectConfig,
 } from '../../core/project-config.js';
 import {
@@ -76,6 +77,24 @@ export type ArchiveInstructionsOptions = ApplyInstructionsOptions;
 // -----------------------------------------------------------------------------
 
 /**
+ * The project's config, or a refusal.
+ *
+ * This is the command a skill runs to hand an agent its instruction, so a
+ * config that exists and does not parse is the one case that must not be
+ * survivable: continuing produces a complete-looking instruction with the
+ * project's `context` and `rules` missing from it, and neither the agent nor
+ * the author can tell that from a project that declared nothing. A missing
+ * config stays normal - nothing was declared, so nothing was lost.
+ */
+function readProjectConfigOrThrow(projectRoot: string): ProjectConfig | null {
+  const read = readProjectConfigResult(projectRoot);
+  if (read.unreadable) {
+    throw new ProjectConfigUnreadableError(read);
+  }
+  return read.config;
+}
+
+/**
  * Reads the resolved root's config once, assembles the referenced-store
  * index when references are declared, and resolves the config path for
  * fix text. Shared by both instruction surfaces.
@@ -84,8 +103,7 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   projectConfig: ProjectConfig | null;
   references: ReferenceIndexEntry[] | undefined;
 }> {
-  // readProjectConfig never throws: missing/unparseable configs are null.
-  const projectConfig = readProjectConfig(root.path);
+  const projectConfig = readProjectConfigOrThrow(root.path);
 
   // One registry read serves every relationship consumer in this
   // output so it never carries a torn snapshot.
@@ -612,7 +630,9 @@ export async function archiveInstructionsCommand(
       root.changesDir,
       { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
     );
-    const projectConfig = readProjectConfig(root.path);
+    // Archive inputs are the project's own context and guidance; an unusable
+    // config would silently turn them into "none configured".
+    const projectConfig = readProjectConfigOrThrow(root.path);
     const instructions = generateArchiveInstructions(changeName, projectConfig);
 
     spinner?.stop();

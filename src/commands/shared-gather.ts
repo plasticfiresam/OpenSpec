@@ -8,9 +8,11 @@ import * as path from 'node:path';
 
 import { readRegistrySnapshot, type RegistrySnapshot } from '../core/store/registry.js';
 import {
-  readProjectConfig,
+  readProjectConfigResult,
   resolveConfigFilePath,
+  warnUnreadableProjectConfig,
   type ProjectConfig,
+  type ProjectConfigRead,
 } from '../core/project-config.js';
 import { assembleReferenceIndex, type ReferenceIndexEntry } from '../core/references.js';
 import { inspectOpenSpecRoot, type OpenSpecRootInspection } from '../core/openspec-root.js';
@@ -19,6 +21,8 @@ import type { ResolvedOpenSpecRoot } from '../core/root-selection.js';
 export interface RelationshipData {
   registrySnapshot: RegistrySnapshot;
   projectConfig: ProjectConfig | null;
+  /** The same read with its refusal reason, for surfaces that report it. */
+  projectConfigRead: ProjectConfigRead;
   storeConfigPath: string;
   referenceEntries: ReferenceIndexEntry[];
   rootInspection: OpenSpecRootInspection;
@@ -29,7 +33,12 @@ export async function gatherRelationshipData(
 ): Promise<RelationshipData> {
   const registrySnapshot = await readRegistrySnapshot();
 
-  const projectConfig = readProjectConfig(root.path);
+  // One read serves both consumers. The warning is re-emitted here because
+  // this gather replaced a readProjectConfig call: doctor turns the reason
+  // into a reported problem, and `context` must not get quieter than it was.
+  const projectConfigRead = readProjectConfigResult(root.path);
+  warnUnreadableProjectConfig(projectConfigRead);
+  const projectConfig = projectConfigRead.config;
   const storeConfigPath =
     resolveConfigFilePath(root.path) ?? path.join(root.path, 'openspec', 'config.yaml');
 
@@ -45,6 +54,7 @@ export async function gatherRelationshipData(
   return {
     registrySnapshot,
     projectConfig,
+    projectConfigRead,
     storeConfigPath,
     referenceEntries,
     rootInspection,

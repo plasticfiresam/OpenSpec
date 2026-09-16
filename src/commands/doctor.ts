@@ -37,6 +37,7 @@ async function gatherHealth(
   const {
     registrySnapshot,
     projectConfig,
+    projectConfigRead,
     referenceEntries,
     rootInspection,
   } = data;
@@ -48,6 +49,9 @@ async function gatherHealth(
     rootStatus: rootInspection.diagnostics,
     referenceEntries,
     registryUnreadable,
+    // Doctor is where a broken config must be named: every other command
+    // degrades quietly to "the project declared nothing".
+    ...(projectConfigRead.unreadable ? { unreadableConfig: projectConfigRead } : {}),
   };
 
   // Store facts for store-backed roots (explicit --store, a declared
