@@ -273,14 +273,14 @@ artifacts:
       DTOs never leave the datasource; repositories return `Result`;
       exceptions do not cross layers.
 
-      Name the verification seam that proves every requirement. There are
-      exactly three seams plus "not covered", one fixed seam per component:
-      - Bloc → bloc_test: a mocked IRepository; asserts the State sequence per Event and the Actions through the action stream.
-      - Repository → unit: a mocked DataSource; asserts the DTO → Entity mapping into `Result` and `Failure` on exception.
-      - Converter, Entity, pure rules → unit: table-driven, inputs as data and one test body; asserts the formulas, invariants, and decision tables from the spec.
-      - View → golden: a fake ViewModel; one golden per View with a scenario per State variant.
-      - Widget → golden: a scenario per variant and interaction state.
-      - Flow, Assembly, DataSource → not covered: glue without logic and generated code; write `not covered` with that reason in the seam column.
+      Name the verification seam that proves every requirement. Three seams
+      cover every component that carries logic, and a fourth entry marks the
+      ones nothing proves. The seam column of the table holds exactly one of
+      these four words:
+      - unit: Repository against a mocked DataSource, asserting the DTO → Entity mapping into `Result` and `Failure` on exception; Converter, Entity, and pure rules table-driven, inputs as data and one test body, asserting the formulas, invariants, and decision tables from the spec.
+      - bloc_test: Bloc against a mocked IRepository, asserting the State sequence per Event and the Actions through the action stream.
+      - golden: View with a fake ViewModel, one golden per View with a scenario per State variant; Widget with a scenario per variant and interaction state.
+      - not covered: Flow, Assembly, and DataSource, glue without logic and generated code; write `not covered` with that reason in the seam column.
       There is no end-to-end seam: a journey is proven by the Bloc's Action
       (bloc_test), the View's golden, and the route registration checked on
       a device in the tasks Definition of Done. The test name is the
@@ -370,7 +370,6 @@ artifacts:
         device or simulator, with the route leading to it and the Assembly
         providing its dependencies; every MR of the change within the
         project's size limit.
-
       Example:
       ```
       ## 1. Setup
@@ -382,6 +381,26 @@ artifacts:
 
       - [ ] 2.1 Implement data export function and verify the export test passes
       - [ ] 2.2 Add CSV formatting utilities and verify unit tests cover quoting and delimiters
+      ```
+
+      For a Flutter client on the Surf standard, group the tasks by layer in
+      the dependency order above, one group per merge-request-sized slice,
+      and name the slice in the group heading. The shape of such a list,
+      with the project's own commands and paths left out:
+
+      ```
+      ## 1. Domain and data (MR 1)
+
+      - [ ] 1.1 Add the `Balance` Entity and `BalanceFailure`; verify with the table-driven unit test `formats a zero balance when the amount is missing`
+      - [ ] 1.2 Add `IBalanceRepository`, the DTO, the Converter, the DataSource, and the Repository; verify with the unit test `returns a failure when the balance source throws` against a mocked DataSource
+
+      ## 2. Bloc (MR 2)
+
+      - [ ] 2.1 Implement `BalanceBloc` with the refresh Event, State, and offline Action; verify with the bloc_test `keeps the last known balance visible when the refresh runs offline`
+
+      ## 3. Screen (MR 3)
+
+      - [ ] 3.1 Implement the ViewModel, View, and Flow, register the route and the Assembly; verify with the golden covering the loading, loaded, and offline State variants, then open the screen on a simulator
       ```
 
       Reference specs for what needs to be built, design for how to build it.

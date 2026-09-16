@@ -18,13 +18,12 @@ const SURF_COMPONENTS = [
   'Assembly', 'Result', 'DTO', 'Storage', 'DAO',
 ];
 
-const SEAM_PAIRS = [
-  'Bloc → bloc_test',
-  'Repository → unit',
-  'Converter, Entity, pure rules → unit',
-  'View → golden',
-  'Widget → golden',
-  'Flow, Assembly, DataSource → not covered',
+/** Each seam, with the components the instruction files under it. */
+const SEAM_GROUPS: Array<[string, string[]]> = [
+  ['unit', ['Repository', 'Converter', 'Entity', 'pure rules']],
+  ['bloc_test', ['Bloc']],
+  ['golden', ['View', 'Widget']],
+  ['not covered', ['Flow', 'Assembly', 'DataSource']],
 ];
 
 /**
@@ -119,8 +118,12 @@ describe('spec-driven platform blocks', () => {
     for (const seam of ['unit', 'bloc_test', 'golden', 'not covered']) {
       expect(design).toContain(seam);
     }
-    for (const pair of SEAM_PAIRS) {
-      expect(design).toContain(pair);
+    for (const [seam, components] of SEAM_GROUPS) {
+      const line = design.split('\n').find((l) => l.trim().startsWith(`- ${seam}:`));
+      expect(line, `no bullet for the ${seam} seam`).toBeDefined();
+      for (const component of components) {
+        expect(line).toContain(component);
+      }
     }
     expect(design).toMatch(/Route registration and Assembly registration are mandatory facts of\s+the design/u);
     expect(design).toMatch(/generator hook or by hand - comes\s+from the project context and rules/u);
@@ -208,6 +211,12 @@ describe('spec-driven platform blocks', () => {
     const template = await readTemplate('tasks');
 
     expect(tasks).toContain('Flutter client on the Surf standard');
+    // The example shows the rules stated above it: layer groups cut into MR-sized
+    // slices, and every verification named by its Scenario.
+    expect(tasks).toContain('## 1. Domain and data (MR 1)');
+    expect(tasks).toContain('## 2. Bloc (MR 2)');
+    expect(tasks).toContain('## 3. Screen (MR 3)');
+    expect(tasks).toContain('keeps the last known balance visible when the refresh runs offline');
     expect(tasks).toMatch(/come from the project `context` and `rules` in\s+`openspec\/config\.yaml`/u);
     expect(tasks).toMatch(/Bloc,\s+Repository, Converter, and pure rule has a unit test/u);
     expect(tasks).toMatch(/View and\s+public Widget has a golden with a scenario per State variant/u);
