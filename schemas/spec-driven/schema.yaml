@@ -95,6 +95,11 @@ artifacts:
       row applies to any backend that can change data behind the app. Keep
       the table above the delta sections; it is not merged into the main
       spec at archive, so every rule it points to must live in a Requirement.
+      The row for key navigation and end-to-end journeys expects no separate
+      end-to-end test: there is no end-to-end seam, a journey is proven by
+      the Bloc's Action (bloc_test), the View's golden, and the route
+      registration checked on a device in the tasks Definition of Done, so
+      write the journey as Scenarios of the requirements it crosses.
 
       Good spec content:
       - Observable behavior users or downstream systems rely on
