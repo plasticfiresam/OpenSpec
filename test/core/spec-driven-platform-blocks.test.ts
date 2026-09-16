@@ -311,9 +311,9 @@ describe('spec-driven platform blocks', () => {
     expect(readme).toContain('`#### Scenario: [what happens] when [condition]`');
     expect(readme).toMatch(/Все подсказки в квадратных скобках, включая заготовку/u);
     expect(readme).toMatch(/заменяются целиком до\s+запуска `openspec validate <name> --strict`/u);
-    expect(readme).toMatch(/незаменённая заготовка проверку\s+не проходит/u);
+    expect(readme).toMatch(/Scenario с таким именем не\s+называет ни одного теста, и артефакт с ним не готов/u);
     // The CLI cannot tell a leftover hint from written text, so the README says who removes it.
-    expect(readme).toMatch(/Снимает её\s+автор/u);
+    expect(readme).toMatch(/Снимает заготовку\s+автор/u);
   });
 
   it('documents the conditional blocks and a Surf config example in the README', async () => {

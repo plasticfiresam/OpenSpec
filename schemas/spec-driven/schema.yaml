@@ -244,8 +244,10 @@ artifacts:
       Component Coverage and Layer Boundaries And Registration are
       conditional blocks of the template: keep them when the change is about a
       Flutter client on the Surf standard, delete them otherwise. When kept,
-      map every requirement to the smallest owning component of the closed
-      Surf vocabulary. Presentation: Flow (route entry point that provides
+      map every requirement to the smallest owning components of the closed
+      Surf vocabulary: one class is exactly one component, while a single
+      requirement may be carried by a few of them together, and then the
+      column names each. Presentation: Flow (route entry point that provides
       the Assembly), ViewModel (bridge between Bloc and View, read-only
       state), View (pure UI that renders the ViewModel), Widget (reusable UI
       element, typed constructor, no state management). Domain: Entity
@@ -270,8 +272,9 @@ artifacts:
       datasource, or ui; data does not depend on presentation or ui;
       presentation does not depend on data or datasource; a Repository does
       not import other Repositories and a Bloc does not import other Blocs;
-      DTOs never leave the datasource; repositories return `Result`;
-      exceptions do not cross layers.
+      a DTO goes no further than the Repository that converts it into an
+      Entity, never into domain or presentation; repositories return
+      `Result`; exceptions do not cross layers.
 
       Name the verification seam that proves every requirement. Three seams
       cover every component that carries logic, and a fourth entry marks the
