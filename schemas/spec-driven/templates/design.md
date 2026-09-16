@@ -19,7 +19,7 @@ specs.]
 
 [Условный блок для Flutter-клиента на стандарте Surf: удалите, если change не
 про Flutter-клиент. Одна строка на требование. Сопоставьте каждое требование
-наименьшему владеющему компоненту закрытого словаря, слою, seam, который его
+наименьшему компоненту-владельцу из закрытого словаря, слою, seam, который его
 докажет, и имени теста — имени Scenario из спецификации дословно.
 
 Компоненты: Presentation — Flow, ViewModel, View, Widget; Domain — Entity,
@@ -37,8 +37,9 @@ bloc_test (мок IRepository, последовательность State на E
 табличный unit; View → golden с фейковым ViewModel, сценарий на каждый вариант
 State; Widget → golden на каждый вариант и состояние; Flow, Assembly,
 DataSource → not covered (склейка без логики и сгенерированный код).
-End-to-end seam нет: журни доказывают Action у Bloc, golden у View и проверка
-маршрута на устройстве в Definition of Done. Имя теста равно имени Scenario
+Отдельного end-to-end seam нет: сквозной пользовательский путь доказывают
+Action у Bloc, golden у View и проверка маршрута на устройстве из Definition
+of Done. Имя теста равно имени Scenario
 (`<what happens> when <condition>`), имя golden-сценария — имени варианта
 State. Путь к тесту, общие фейки и эталонные тесты берутся из `context` и
 `rules` проекта.]

@@ -197,7 +197,7 @@ describe('spec-driven platform blocks', () => {
     expect(template).toContain('| Аспект | Requirement(s) или N/A | Что требует подтверждения человеком |');
     const rows = template.split('\n').filter((line) => line.startsWith('| ') && !line.startsWith('| Аспект'));
     expect(rows).toHaveLength(9);
-    for (const concern of ['Чтение данных', 'UI-семантика', 'Чистая бизнес-логика', 'сверх обычного CRUD', 'timeout, offline и pending', 'loading, empty, error, partial и stale', 'Realtime, push и sync', 'журни', 'права, персистентность, deep links']) {
+    for (const concern of ['Чтение данных', 'UI-семантика', 'Чистая бизнес-логика', 'сверх обычного CRUD', 'timeout, offline и pending', 'loading, empty, error, partial и stale', 'Realtime, push и sync', 'сквозных пользовательских путей', 'права, персистентность, deep links']) {
       expect(template).toContain(concern);
     }
     expect(template.indexOf('## Capability Coverage')).toBeLessThan(template.indexOf('## ADDED Requirements'));
@@ -224,7 +224,7 @@ describe('spec-driven platform blocks', () => {
     expect(template).toMatch(/Bloc, Repository, Converter и чистого правила есть unit-тест \(bloc_test для Bloc\)/u);
     expect(template).toMatch(/View и публичного Widget есть golden со сценарием на каждый вариант State/u);
     expect(template).toMatch(/каждый изменённый снимок объяснён в описании MR/u);
-    expect(template).toMatch(/регистрацию маршрута и Assembly на устройстве или эмуляторе/u);
+    expect(template).toMatch(/маршрут ведёт на него, а Assembly отдаёт ему зависимости/u);
     expect(template).toMatch(/лимит размера из правил проекта/u);
     expect(template).not.toMatch(/\b400\b/u);
   });
