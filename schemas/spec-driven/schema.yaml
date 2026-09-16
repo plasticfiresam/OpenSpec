@@ -385,3 +385,8 @@ apply:
   instruction: |
     Read context files, work through pending tasks, mark complete as you go.
     Pause if you hit blockers or need clarification.
+
+    Before marking a group of tasks complete, run the checks the tasks
+    Definition of Done names and the project commands from `rules.tasks` in
+    `openspec/config.yaml`. A red check keeps the group open: fix it or stop,
+    never mark the group done over a failing check.
