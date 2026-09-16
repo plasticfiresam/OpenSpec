@@ -78,6 +78,11 @@ function instructionOf(id: string): string {
   return schema.artifacts.find((a) => a.id === id)?.instruction ?? '';
 }
 
+/** The apply phase instruction, which lives outside the artifact list. */
+function applyInstruction(): string {
+  return loadSchema(path.join(SCHEMA_DIR, 'schema.yaml')).apply?.instruction ?? '';
+}
+
 describe('spec-driven platform blocks', () => {
   let tempDir: string | undefined;
 
@@ -241,10 +246,65 @@ describe('spec-driven platform blocks', () => {
     }
   });
 
-  it('writes the spec, design, and tasks templates in Russian', async () => {
-    for (const name of ['spec', 'design', 'tasks']) {
+  it('writes all four templates in Russian, proposal included', async () => {
+    for (const name of ['proposal', 'spec', 'design', 'tasks']) {
       expect(await readTemplate(name)).toMatch(CYRILLIC);
     }
+
+    // The proposal template moved from HTML comments to bracketed hints,
+    // keeping the headings the proposal instruction names and the technical
+    // strings verbatim.
+    const proposal = await readTemplate('proposal');
+    expect(proposal).not.toContain('<!--');
+    for (const heading of ['## Why', '## What Changes', '## Capabilities', '### New Capabilities', '### Modified Capabilities', '## Impact']) {
+      expect(proposal).toContain(heading);
+    }
+    for (const kept of ['- `<capability-path>`:', '- `<existing-capability-path>`:', 'kebab-case', '`specs/<capability-path>/spec.md`', '`skip_specs: true`', '`.openspec.yaml`', '`openspec validate`', 'exact existing path under openspec/specs/']) {
+      expect(proposal).toContain(kept);
+    }
+  });
+
+  it('marks every conditional block as conditional, mini blocks included', async () => {
+    const template = await readTemplate('design');
+    const design = instructionOf('design');
+
+    // Flutter client block.
+    expect(template).toMatch(/Условный блок для Flutter-клиента[\s\S]*?удалите, если change не\s+про Flutter-клиент/u);
+    expect(design).toMatch(/For a Flutter client on the Surf standard, keep the conditional\s+Component Coverage and Layer Boundaries And Registration blocks/u);
+    // mini client sub-block.
+    expect(template).toMatch(/Условный подблок: оставьте, только если клиент общается с бэкендом mini;\s+иначе удалите подблок/u);
+    expect(design).toMatch(/Delete the sub-block\s+when the backend is not mini/u);
+    // mini backend hints under Decisions.
+    expect(template).toMatch(/Условный список: оставьте пункты про mini, только если бэкенд change\s+построен на mini; иначе удалите их/u);
+    expect(design).toMatch(/Keep the mini decisions below only when the change's backend is built\s+on mini; when the backend is a different one, delete them/u);
+  });
+
+  it('sends the apply phase to the Definition of Done checks and the project rules', () => {
+    const apply = applyInstruction();
+
+    expect(apply).toMatch(/Before marking a group of tasks complete, run the checks the tasks\s+Definition of Done names/u);
+    expect(apply).toMatch(/project commands from `rules\.tasks` in\s+`openspec\/config\.yaml`/u);
+    expect(apply).toMatch(/A red check keeps the group open/u);
+  });
+
+  it('tells the specs author how a journey is proven, in step with the design instruction', () => {
+    const specs = instructionOf('specs');
+    const design = instructionOf('design');
+
+    expect(specs).toMatch(/row for key navigation and end-to-end journeys expects no separate\s+end-to-end test/u);
+    expect(specs).toMatch(/the Bloc's Action \(bloc_test\), the View's golden, and the route\s+registration checked on a device in the tasks Definition of Done/u);
+    expect(design).toMatch(/There is no end-to-end seam: a journey is proven by the Bloc's Action\s+\(bloc_test\), the View's golden, and the route registration checked on\s+a device in the tasks Definition of Done/u);
+  });
+
+  it('tells the README reader to replace every bracketed hint before --strict', async () => {
+    const readme = await fs.readFile(path.join(SCHEMA_DIR, 'README.md'), 'utf8');
+
+    expect(readme).toContain('`#### Scenario: [what happens] when [condition]`');
+    expect(readme).toMatch(/Все подсказки в квадратных скобках, включая заготовку/u);
+    expect(readme).toMatch(/заменяются целиком до\s+запуска `openspec validate <name> --strict`/u);
+    expect(readme).toMatch(/незаменённая заготовка проверку\s+не проходит/u);
+    // The CLI cannot tell a leftover hint from written text, so the README says who removes it.
+    expect(readme).toMatch(/Снимает её\s+автор/u);
   });
 
   it('documents the conditional blocks and a Surf config example in the README', async () => {
