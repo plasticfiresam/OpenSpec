@@ -60,20 +60,51 @@ artifacts:
       These are optional forms, not mandatory sections or separate requirement
       types. Use the name "decision table" for a rule-based algorithm where
       conditions or their combinations select outcomes or actions and rows
-      make branching, completeness, or priority clearer than prose. A genuine
+      show branching, completeness, or priority more clearly than prose. A genuine
       decision table identifies conditions, outcomes, and relevant rules, plus
       ordering or a hit policy, defaults, and infeasible cases when applicable.
       Use a formula, invariant, classifier, mapping/permission matrix,
       state-transition table, or operation contract when that notation fits
-      better. A pure implementation does not by itself make a rule a decision
-      table. Place applicable forms inside the corresponding Requirement before
+      better. A pure implementation does not by itself turn a rule into a
+      decision table. Place applicable forms inside the corresponding Requirement before
       its Scenarios and label them with bold text, not level-4 headings:
       OpenSpec reserves `####` headings for Scenarios. Do not invent nominal
-      rules to cover the list. Technical mini mappings belong in design.md.
+      rules to cover the list. Technical mappings, mini ones included, belong in design.md.
+
+      Scenarios use GIVEN/WHEN/THEN bullets: `- **GIVEN**` (initial state, only
+      when it matters), `- **WHEN**` (trigger), `- **THEN**` (observable
+      result), and `- **AND**` for additional guarantees.
+
+      Scenario names are test names. Write each Scenario name in English in
+      the form `<what happens> when <condition>`, without the words "should"
+      and "test", whatever language the spec body uses: design.md and
+      tasks.md reuse the Scenario name verbatim as the name of the unit,
+      bloc_test, or golden test that proves it. The GIVEN/WHEN/THEN body
+      stays in the language of the spec. Give every observable screen state
+      (loading, empty, error, partial, stale, and each loaded variant) its
+      own Scenario, so that golden scenarios map to Scenarios 1:1. Example:
+      `#### Scenario: keeps the last known balance visible when the refresh runs offline`.
+
+      Client application coverage: the template contains a conditional
+      `## Capability Coverage` block with a nine-row coverage table. Keep it
+      only when the change is about a client application (a mobile, desktop,
+      or web UI); delete the whole block otherwise. When kept, fill each row
+      with the requirement(s) that cover the concern or `N/A` with a short
+      reason and keep the column that says what needs human confirmation.
+      The rows are backend-independent; the realtime/push/sync invalidation
+      row applies to any backend that can change data behind the app. Keep
+      the table above the delta sections; it is not merged into the main
+      spec at archive, so every rule it points to must live in a Requirement.
+      The row for key navigation and end-to-end journeys expects no separate
+      end-to-end test: there is no end-to-end seam, a journey is proven by
+      the Bloc's Action (bloc_test), the View's golden, and the route
+      registration checked on a device in the tasks Definition of Done, so
+      write the journey as Scenarios of the requirements it crosses.
 
       Good spec content:
       - Observable behavior users or downstream systems rely on
-      - Inputs, outputs, and error conditions
+      - Inputs, outputs, and error conditions, including the offline, timeout,
+        pending, empty, partial, and stale states a user can see
       - External constraints (security, privacy, reliability, compatibility)
       - Scenarios that can be tested or explicitly validated
 
@@ -106,7 +137,7 @@ artifacts:
       Format requirements:
       - Each requirement: `### Requirement: <name>` followed by description
       - Use SHALL/MUST for normative requirements (avoid should/may)
-      - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
+      - Each scenario: `#### Scenario: <what happens> when <condition>` with GIVEN/WHEN/THEN bullets
       - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
       - Every requirement MUST have at least one scenario.
 
@@ -146,7 +177,7 @@ artifacts:
       ### Requirement: User can export data
       The system SHALL allow users to export their data in CSV format.
 
-      #### Scenario: Successful export
+      #### Scenario: downloads a CSV file with all user data when the user clicks Export
       - **WHEN** user clicks "Export" button
       - **THEN** system downloads a CSV file with all user data
 
@@ -157,7 +188,7 @@ artifacts:
       **Migration**: Use new export endpoint at /api/v2/export
       ```
 
-      Specs should be testable - each scenario is a potential test case.
+      Specs are testable: each Scenario becomes one test with the same name.
     requires:
       - proposal
 
@@ -168,15 +199,19 @@ artifacts:
     instruction: |
       Create the design document that explains HOW to implement the change.
 
-      When to include design.md (create only if any apply):
-      - Cross-cutting change (multiple services/modules) or new architectural pattern
-      - New external dependency or significant data model changes
-      - Security, performance, or migration complexity
-      - Ambiguity that benefits from technical decisions before coding
+      design.md is always created: the tasks artifact requires it. Its length
+      follows the change. Spend a page on a cross-cutting change, a new
+      architectural pattern, a new dependency, a significant data model
+      change, or security, performance and migration complexity. Spend a few
+      lines when the change is small and the approach is obvious: name the
+      approach and the reason for it, and leave out every section that would
+      only repeat the proposal or the specs. Never pad the document to look
+      thorough.
 
       Sections:
       - **Context**: Only the current state and constraints needed to explain the approach. Reference the proposal for motivation instead of restating it (e.g., "See proposal.md - Why").
       - **Goals / Non-Goals**: What this design achieves and explicitly excludes. Don't restate the proposal's scope - add only design-level boundaries.
+      - **Component Coverage** and **Layer Boundaries And Registration**: Conditional sections for a Flutter client on the Surf standard, see below. Delete them otherwise.
       - **Decisions**: Key technical choices with rationale (why X over Y?). Include alternatives considered for each decision.
       - **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation
       - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
@@ -192,6 +227,9 @@ artifacts:
       proposal for motivation and, once written, the specs for requirements -
       if a section would only restate them, point to them instead.
 
+      Keep the mini decisions below only when the change's backend is built
+      on mini; when the backend is a different one, delete them and describe
+      the actual approach under Decisions instead.
       For mini-based implementation, cover only the applicable mappings:
       Resource/registry; CRUDL or aggregate; pure business rules and decision
       seams wherever a rule can be separated from I/O and state. Name the
@@ -202,6 +240,77 @@ artifacts:
       general inventory of entities or registries. Use an appropriate Mermaid
       diagram when it makes non-trivial interactions, flows, sequences, or
       state models easier to understand; diagrams are not mandatory.
+
+      Component Coverage and Layer Boundaries And Registration are
+      conditional blocks of the template: keep them when the change is about a
+      Flutter client on the Surf standard, delete them otherwise. When kept,
+      map every requirement to the smallest owning components of the closed
+      Surf vocabulary: one class is exactly one component, while a single
+      requirement may be carried by a few of them together, and then the
+      column names each. Presentation: Flow (route entry point that provides
+      the Assembly), ViewModel (bridge between Bloc and View, read-only
+      state), View (pure UI that renders the ViewModel), Widget (reusable UI
+      element, typed constructor, no state management). Domain: Entity
+      (immutable model), Bloc (Event → State + Action), Event (input signal),
+      State (complete UI condition at a point in time), Action (one-time side
+      effect such as navigation or a dialog), IRepository (interface for
+      external data access), Failure (typed error). Data: Repository
+      (implements IRepository), Converter (pure DTO ↔ Entity transform),
+      DataSource (single remote or local source). Cross-cutting: Assembly
+      (per-feature DI container), Result (explicit success or Failure), DTO
+      (transfer object of a datasource), Storage (key-value or secure
+      persistence), DAO (relational data access). Every class in the change
+      maps to exactly one component. Prohibited: Helper, Service, Manager,
+      Handler, or Utils classes, `Provider` as a domain class, a
+      feature-level `common/` or `util/` directory; there are no use cases or
+      interactors - business logic lives in the Bloc, pure rules in Entities
+      or Converters. If a class cannot be mapped to a component, it does not
+      belong in the design.
+
+      Layer boundaries are a principle of the design, whatever lint enforces
+      them in the project: domain does not depend on data, presentation,
+      datasource, or ui; data does not depend on presentation or ui;
+      presentation does not depend on data or datasource; a Repository does
+      not import other Repositories and a Bloc does not import other Blocs;
+      a DTO goes no further than the Repository that converts it into an
+      Entity, never into domain or presentation; repositories return
+      `Result`; exceptions do not cross layers.
+
+      Name the verification seam that proves every requirement. Three seams
+      cover every component that carries logic, and a fourth entry marks the
+      ones nothing proves. The seam column of the table holds exactly one of
+      these four words:
+      - unit: Repository against a mocked DataSource, asserting the DTO → Entity mapping into `Result` and `Failure` on exception; Converter, Entity, and pure rules table-driven, inputs as data and one test body, asserting the formulas, invariants, and decision tables from the spec.
+      - bloc_test: Bloc against a mocked IRepository, asserting the State sequence per Event and the Actions through the action stream.
+      - golden: View with a fake ViewModel, one golden per View with a scenario per State variant; Widget with a scenario per variant and interaction state.
+      - not covered: Flow, Assembly, and DataSource, glue without logic and generated code; write `not covered` with that reason in the seam column.
+      There is no end-to-end seam: a journey is proven by the Bloc's Action
+      (bloc_test), the View's golden, and the route registration checked on
+      a device in the tasks Definition of Done. The test name is the
+      Scenario name from the spec verbatim (`<what happens> when
+      <condition>`); the golden scenario name is the State variant name. The
+      test file layout, the shared fakes, and the reference tests are project
+      facts: take them from the project context and rules, the schema fixes
+      only the seam and the name.
+
+      Route registration and Assembly registration are mandatory facts of
+      the design: name the route (its path, whether it is initial, who adds
+      it) and where the feature Assembly is wired into its parent. How a
+      project registers them - through a generator hook or by hand - comes
+      from the project context and rules, not from the schema.
+
+      When such a client talks to a mini backend, keep the conditional mini
+      client sub-block of the template and cover only what the change
+      touches: the generated contract and DTOs and the API version they are
+      bound to; CRUDL, `aggregate`, and FSM transitions through the resource
+      client; a `CustomMethod` call with its idempotency key and the set of
+      resources it invalidates; the rule SSE event → invalidation of the
+      Repository or cache → refetch of the active screen state, with REST
+      reads staying authoritative; push registration for background
+      delivery; the ETag HTTP cache. Each mini client sits behind a
+      DataSource; Blocs and Views never see mini types. Delete the sub-block
+      when the backend is not mini and describe the actual API contract under
+      Decisions instead.
 
       Good design docs explain the "why" behind technical decisions.
     requires:
@@ -232,6 +341,38 @@ artifacts:
         when it checks broader integration or system behavior that spans
         multiple implementation tasks.
 
+      The Definition of Done is a conditional block of the template: keep it
+      when the change is about a Flutter client on the Surf standard, delete it
+      otherwise. The schema names no commands and no
+      paths: the commands for formatting, analysis, the test run, code
+      generation, and golden regeneration, the generators, and the file
+      layout come from the project `context` and `rules` in
+      `openspec/config.yaml`; write the project's own commands into the
+      tasks, never a guess. In that case also:
+      - Order tasks by dependency: Entity and Failure → IRepository → DTO,
+        DataSource, Converter, Repository → Bloc (Event, State, Action) →
+        ViewModel, View, Widget → Flow, route and Assembly registration.
+      - When the verification is a test, name it: the test name is the
+        Scenario name from the spec verbatim (`<what happens> when
+        <condition>`), and a golden scenario is named after its State
+        variant; the test path follows the layout from the project rules.
+      - Split the work into merge-request-sized slices and say which slice
+        each group belongs to; the MR size limit comes from the project
+        rules. A group that cannot fit is split further, not merged larger.
+      - Finish with a Definition of Done that keeps, as checkboxes:
+        `openspec validate <change> --strict` green; the regenerated files
+        part of the change with a clean working copy; the formatting check,
+        the analysis, and the single test
+        run green with the project's commands, covering the unit, bloc_test,
+        and golden seams from design.md; every new or changed Bloc,
+        Repository, Converter, and pure rule has a unit test (bloc_test for
+        the Bloc) named after its Scenarios; every new or changed View and
+        public Widget has a golden with a scenario per State variant; golden
+        snapshots were regenerated only for intended changes and every
+        changed snapshot is explained in the MR; the new screen opened on a
+        device or simulator, with the route leading to it and the Assembly
+        providing its dependencies; every MR of the change within the
+        project's size limit.
       Example:
       ```
       ## 1. Setup
@@ -245,6 +386,26 @@ artifacts:
       - [ ] 2.2 Add CSV formatting utilities and verify unit tests cover quoting and delimiters
       ```
 
+      For a Flutter client on the Surf standard, group the tasks by layer in
+      the dependency order above, one group per merge-request-sized slice,
+      and name the slice in the group heading. The shape of such a list,
+      with the project's own commands and paths left out:
+
+      ```
+      ## 1. Domain and data (MR 1)
+
+      - [ ] 1.1 Add the `Balance` Entity and `BalanceFailure`; verify with the table-driven unit test `formats a zero balance when the amount is missing`
+      - [ ] 1.2 Add `IBalanceRepository`, the DTO, the Converter, the DataSource, and the Repository; verify with the unit test `returns a failure when the balance source throws` against a mocked DataSource
+
+      ## 2. Bloc (MR 2)
+
+      - [ ] 2.1 Implement `BalanceBloc` with the refresh Event, State, and offline Action; verify with the bloc_test `keeps the last known balance visible when the refresh runs offline`
+
+      ## 3. Screen (MR 3)
+
+      - [ ] 3.1 Implement the ViewModel, View, and Flow, register the route and the Assembly; verify with the golden covering the loading, loaded, and offline State variants, then open the screen on a simulator
+      ```
+
       Reference specs for what needs to be built, design for how to build it.
     requires:
       - specs
@@ -256,3 +417,8 @@ apply:
   instruction: |
     Read context files, work through pending tasks, mark complete as you go.
     Pause if you hit blockers or need clarification.
+
+    Before marking a group of tasks complete, run the checks the tasks
+    Definition of Done names and the project commands from `rules.tasks` in
+    `openspec/config.yaml`. A red check keeps the group open: fix it or stop,
+    never mark the group done over a failing check.
