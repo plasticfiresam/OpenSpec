@@ -69,9 +69,9 @@ artifacts:
       decision table. Place applicable forms inside the corresponding Requirement before
       its Scenarios and label them with bold text, not level-4 headings:
       OpenSpec reserves `####` headings for Scenarios. Do not invent nominal
-      rules to cover the list. Technical mini mappings belong in design.md.
+      rules to cover the list. Technical mappings, mini ones included, belong in design.md.
 
-      Scenarios use WHEN/THEN bullets: `- **GIVEN**` (initial state, only
+      Scenarios use GIVEN/WHEN/THEN bullets: `- **GIVEN**` (initial state, only
       when it matters), `- **WHEN**` (trigger), `- **THEN**` (observable
       result), and `- **AND**` for additional guarantees.
 
@@ -137,7 +137,7 @@ artifacts:
       Format requirements:
       - Each requirement: `### Requirement: <name>` followed by description
       - Use SHALL/MUST for normative requirements (avoid should/may)
-      - Each scenario: `#### Scenario: <what happens> when <condition>` with WHEN/THEN bullets
+      - Each scenario: `#### Scenario: <what happens> when <condition>` with GIVEN/WHEN/THEN bullets
       - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
       - Every requirement MUST have at least one scenario.
 
@@ -238,10 +238,10 @@ artifacts:
       diagram when it makes non-trivial interactions, flows, sequences, or
       state models easier to understand; diagrams are not mandatory.
 
-      For a Flutter client on the Surf standard, keep the conditional
-      Component Coverage and Layer Boundaries And Registration blocks of the
-      template and delete them when the change is not about a Flutter client.
-      Map every requirement to the smallest owning component of the closed
+      Component Coverage and Layer Boundaries And Registration are
+      conditional blocks of the template: keep them when the change is about a
+      Flutter client on the Surf standard, delete them otherwise. When kept,
+      map every requirement to the smallest owning component of the closed
       Surf vocabulary. Presentation: Flow (route entry point that provides
       the Assembly), ViewModel (bridge between Bloc and View, read-only
       state), View (pure UI that renders the ViewModel), Widget (reusable UI
@@ -335,9 +335,9 @@ artifacts:
         when it checks broader integration or system behavior that spans
         multiple implementation tasks.
 
-      For a Flutter client on the Surf standard, keep the conditional
-      Definition of Done block of the template and delete it when the change
-      is not about a Flutter client. The schema names no commands and no
+      The Definition of Done is a conditional block of the template: keep it
+      when the change is about a Flutter client on the Surf standard, delete it
+      otherwise. The schema names no commands and no
       paths: the commands for formatting, analysis, the test run, code
       generation, and golden regeneration, the generators, and the file
       layout come from the project `context` and `rules` in
@@ -354,17 +354,19 @@ artifacts:
         each group belongs to; the MR size limit comes from the project
         rules. A group that cannot fit is split further, not merged larger.
       - Finish with a Definition of Done that keeps, as checkboxes:
-        `openspec validate <change> --strict` green; generated code
-        committed; the formatting check, the analysis, and the single test
+        `openspec validate <change> --strict` green; the regenerated files
+        part of the change with a clean working copy; the formatting check,
+        the analysis, and the single test
         run green with the project's commands, covering the unit, bloc_test,
         and golden seams from design.md; every new or changed Bloc,
         Repository, Converter, and pure rule has a unit test (bloc_test for
         the Bloc) named after its Scenarios; every new or changed View and
         public Widget has a golden with a scenario per State variant; golden
         snapshots were regenerated only for intended changes and every
-        changed snapshot is explained in the MR; route and Assembly
-        registration verified on a device or simulator; every MR of the
-        change within the project's size limit.
+        changed snapshot is explained in the MR; the new screen opened on a
+        device or simulator, with the route leading to it and the Assembly
+        providing its dependencies; every MR of the change within the
+        project's size limit.
 
       Example:
       ```

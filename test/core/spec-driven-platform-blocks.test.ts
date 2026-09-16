@@ -107,7 +107,7 @@ describe('spec-driven platform blocks', () => {
     const design = instructionOf('design');
 
     expect(design).toContain('For mini-based implementation');
-    expect(design).toContain('For a Flutter client on the Surf standard');
+    expect(design).toContain('Flutter client on the Surf standard');
     for (const component of SURF_COMPONENTS) {
       expect(design).toContain(component);
     }
@@ -207,7 +207,7 @@ describe('spec-driven platform blocks', () => {
     const tasks = instructionOf('tasks');
     const template = await readTemplate('tasks');
 
-    expect(tasks).toContain('For a Flutter client on the Surf standard');
+    expect(tasks).toContain('Flutter client on the Surf standard');
     expect(tasks).toMatch(/come from the project `context` and `rules` in\s+`openspec\/config\.yaml`/u);
     expect(tasks).toMatch(/Bloc,\s+Repository, Converter, and pure rule has a unit test/u);
     expect(tasks).toMatch(/View and\s+public Widget has a golden with a scenario per State variant/u);
@@ -270,7 +270,7 @@ describe('spec-driven platform blocks', () => {
 
     // Flutter client block.
     expect(template).toMatch(/Условный блок для Flutter-клиента[\s\S]*?удалите, если change не\s+про Flutter-клиент/u);
-    expect(design).toMatch(/For a Flutter client on the Surf standard, keep the conditional\s+Component Coverage and Layer Boundaries And Registration blocks/u);
+    expect(design).toMatch(/Component Coverage and Layer Boundaries And Registration are\s+conditional blocks of the template: keep them when the change is about a\s+Flutter client on the Surf standard, delete them otherwise/u);
     // mini client sub-block.
     expect(template).toMatch(/Условный подблок: оставьте, только если клиент общается с бэкендом mini;\s+иначе удалите подблок/u);
     expect(design).toMatch(/Delete the sub-block\s+when the backend is not mini/u);
